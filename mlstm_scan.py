@@ -385,7 +385,7 @@ if __name__ == '__main__':
     v = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32)
     f = torch.randn((BATCH, HEADS, S), device=DEVICE, dtype=torch.float32)
     i = torch.randn((BATCH, HEADS, S), device=DEVICE, dtype=torch.float32)
-    o = torch.randn((BATCH, HEADS, S), device=DEVICE, dtype=torch.float32)
+    o = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32)
 
     h_triton = mlstm_scan(q, k, v, f, i, o,
                           reduce_block_size=REDUCE_BLOCK_SIZE,
