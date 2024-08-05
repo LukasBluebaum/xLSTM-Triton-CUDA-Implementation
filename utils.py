@@ -13,4 +13,4 @@ def check(*inputs, name='A', atol=1e-2, rtol=1e-2):
                   f"Non-Matching Values B:\n{b[c1 == False]}\n Percentage non-matching: "
                   f"{format(torch.sum(c1 == False) / torch.numel(a), '.10f')}")
             return
-    print("EQUAL")
+    print(f"{name} -- EQUAL")

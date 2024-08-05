@@ -391,4 +391,4 @@ if __name__ == '__main__':
                           reduce_block_size=REDUCE_BLOCK_SIZE,
                           value_block_size=VALUE_BLOCK_SIZE)
     h_pytorch = mlstm_scan_pytorch(q, k, v, f, i, o)
-    check(h_triton, h_pytorch)
+    check(h_triton, h_pytorch, name='H')
