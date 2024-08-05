@@ -398,7 +398,7 @@ class Triton_mLSTM(torch.autograd.Function):
         mlstm_matmul_kernel_backward[grid](dh, db, q, k, v, dq, dk, dv, f, df, i, di, m, b, HEADS, S, D, B, num_warps=num_warps)
         mlstm_matmul_kernel_df[(batches,)](df, f, HEADS, S, num_warps=num_warps)
 
-        return dq, dk, dv, di, df
+        return dq, dk, dv, di, df, None, None
 
 
 if __name__ == '__main__':
@@ -407,15 +407,16 @@ if __name__ == '__main__':
     S = 8192
     D = 1024
     SB = 8
+    NUM_WARPS = 8
 
-    q = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32)
-    k = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32)
-    v = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32)
-    f = torch.randn((BATCH, HEADS, S), device=DEVICE, dtype=torch.float32)
-    i = torch.randn((BATCH, HEADS, S), device=DEVICE, dtype=torch.float32)
+    q = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32, requires_grad=True)
+    k = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32, requires_grad=True)
+    v = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32, requires_grad=True)
+    f = torch.randn((BATCH, HEADS, S), device=DEVICE, dtype=torch.float32, requires_grad=True)
+    i = torch.randn((BATCH, HEADS, S), device=DEVICE, dtype=torch.float32, requires_grad=True)
     dh = torch.ones((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32)
 
-    h_triton = Triton_mLSTM.apply(q, k, v, f, i, SB=SB)
+    h_triton = Triton_mLSTM.apply(q, k, v, f, i, SB, NUM_WARPS)
     h_pytorch = mlstm_matmul_pytorch(q, k, v, f, i)
     check(h_triton, h_pytorch)
 
