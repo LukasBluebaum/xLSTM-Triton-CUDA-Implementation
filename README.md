@@ -1,8 +1,8 @@
-# xLSTM Triton
+# xLSTM Triton Implementation
 
 - [x] mLSTM scan implementation, inspired by https://srush.github.io/annotated-mamba/hard.html
 - [x] mLSTM matmul implementation
-- [ ] Backward pass
+- [x] mLSTM matmul backward pass
 - [ ] Implement the algorithm from Mamba 2? https://arxiv.org/abs/2405.21060
 - [ ] sLSTM
 - [ ] CUDA version

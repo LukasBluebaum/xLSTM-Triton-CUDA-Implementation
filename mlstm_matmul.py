@@ -418,7 +418,7 @@ if __name__ == '__main__':
 
     h_triton = Triton_mLSTM.apply(q, k, v, f, i, SB, NUM_WARPS)
     h_pytorch = mlstm_matmul_pytorch(q, k, v, f, i)
-    check(h_triton, h_pytorch)
+    check(h_triton, h_pytorch, name='H')
 
     dq, dk, dv, df, di = mlstm_matmul_backward_pytorch(dh, q, k, v, f, i)
 
