@@ -2,6 +2,12 @@
 #include "gpu_utils.cuh"
 
 
+/* TODOs:
+    - vectorize loads, swizzle shared memory
+    - reduce register usage?
+    - check precision + accumulations in fp32
+    - increase flexibility regarding dimensions, BS_DIM etc.
+*/
 template<unsigned int BS_DIM, unsigned int WS_DIM, unsigned int D_DIM, 
          unsigned int MMA_M_DIM, unsigned int MMA_N_DIM, unsigned int MMA_K_DIM>
 __global__ void matmul_forward(half* Q, half* K, half* V, half* F, half* I,

@@ -3,7 +3,7 @@
 - [x] mLSTM scan implementation, inspired by https://srush.github.io/annotated-mamba/hard.html
 - [x] mLSTM matmul implementation
 - [x] mLSTM matmul backward pass
-- [x] mLSTM matmul CUDA forward pass
+- [x] simple mLSTM matmul CUDA forward pass
 - [ ] mLSTM matmul CUDA backward pass
 - [ ] Implement the algorithm from Mamba 2? https://arxiv.org/abs/2405.21060
 - [ ] sLSTM
