@@ -375,7 +375,7 @@ def mlstm_scan_pytorch(q, k, v, f, i, o, eps=1e-6):
 if __name__ == '__main__':
     BATCH = 1
     HEADS = 4
-    S = 8192
+    S = 2048
     D = 1024
     VALUE_BLOCK_SIZE = 4
     REDUCE_BLOCK_SIZE = 4

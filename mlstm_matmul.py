@@ -15,6 +15,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 @triton.jit
 def matrix_mult(x, y, B):
     return tl.dot(x, y) if B >= 16 else tl.sum(x[:, :, None] * y, 1)
+    # https://github.com/triton-lang/triton/issues/3787
+    # return tl.dot(x, y, allow_tf32=False) if B >= 16 else tl.sum(x[:, :, None] * y, 1)
 
 
 @triton.jit
@@ -119,9 +121,11 @@ def mlstm_matmul_pytorch(q, k, v, f, i):
 def mlstm_matmul(q, k, v, f, i, SB=16, num_warps=8):
     B, NH, S, D = q.shape
     h = torch.zeros((B, NH, S, D), device=q.device)
+    m = torch.zeros((B, NH, S), device=q.device)
+    b = torch.zeros((B, NH, S), device=q.device)
 
     grid = (B * NH, triton.cdiv(S, SB))
-    mlstm_matmul_kernel[grid](q, k, v, f, i, h, NH, S, D, SB, num_warps=num_warps)
+    mlstm_matmul_kernel[grid](q, k, v, f, i, m, b, h, NH, S, D, SB, num_warps=num_warps)
     return h
 
 
@@ -396,7 +400,7 @@ class Triton_mLSTM(torch.autograd.Function):
         num_warps = 8
         mlstm_matmul_kernel_backward_db[grid](dh, q, k, v, f, i, m, b, db, NH, S, D, SB, num_warps=num_warps)
         mlstm_matmul_kernel_backward[grid](dh, db, q, k, v, dq, dk, dv, f, df, i, di, m, b, NH, S, D, SB, num_warps=num_warps)
-        mlstm_matmul_kernel_df[(batches,)](df, f, HEADS, S, num_warps=num_warps)
+        mlstm_matmul_kernel_df[(batches,)](df, f, NH, S, num_warps=num_warps)
 
         return dq, dk, dv, df, di, None, None
 
@@ -404,9 +408,9 @@ class Triton_mLSTM(torch.autograd.Function):
 if __name__ == '__main__':
     BATCH = 1
     HEADS = 4
-    S = 8192
-    D = 1024
-    SB = 8
+    S = 2048
+    D = 128
+    SB = 16
     NUM_WARPS = 8
 
     q = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32, requires_grad=True)
