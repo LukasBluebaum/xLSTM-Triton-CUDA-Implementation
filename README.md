@@ -17,7 +17,7 @@ pip install triton
 ```
 
 
-### Matmul based
+### [Matmul](https://github.com/LukasBluebaum/xLSTM-Triton-Implementation/blob/3a0a350fc569f78515a2e6543eff33dd4a4362d7/mlstm_matmul.py#L408) based
 
 ```python
 from mlstm_matmul import Triton_mLSTM
@@ -43,7 +43,7 @@ h_triton = Triton_mLSTM.apply(q, k, v, f, i, SB, NUM_WARPS)
 h_triton.backward(dh)
 ```
 
-### Scan based (only forward pass currently)
+### [Scan](https://github.com/LukasBluebaum/xLSTM-Triton-Implementation/blob/3a0a350fc569f78515a2e6543eff33dd4a4362d7/mlstm_scan.py#L375) based (only forward pass currently)
 
 ```python
 from mlstm_scan import mlstm_scan
