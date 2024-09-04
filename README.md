@@ -1,14 +1,15 @@
-# xLSTM Triton Implementation
+# xLSTM Triton/CUDA Implementation
 
 - [x] mLSTM scan implementation, inspired by https://srush.github.io/annotated-mamba/hard.html
 - [x] mLSTM matmul implementation
 - [x] mLSTM matmul backward pass
+- [x] mLSTM matmul CUDA forward pass
+- [ ] mLSTM matmul CUDA backward pass
 - [ ] Implement the algorithm from Mamba 2? https://arxiv.org/abs/2405.21060
 - [ ] sLSTM
-- [ ] CUDA version
 
 
-## Usage
+## Triton Usage
 
 The scan implementation requires Triton 3.0, the matmul implementation should also work with 2.3.
 
@@ -68,4 +69,61 @@ o = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32)
 h_triton = mlstm_scan(q, k, v, f, i, o,
                       reduce_block_size=REDUCE_BLOCK_SIZE,
                       value_block_size=VALUE_BLOCK_SIZE)
+```
+
+
+## CUDA Usage
+
+Requires >= sm_75.
+
+```
+nvcc -arch=compute_75 -code=sm_75 matmul_forward.cu -o matmul_forward
+chmod +x matmul_forward
+./matmul_forward
+```
+
+### [Matmul](https://github.com/LukasBluebaum/xLSTM-Triton-Implementation/blob/284002c63953cb4d6baefafcbbe75cde83bce89c/cuda/matmul_forward.cu#L185) based
+
+```cuda
+constexpr unsigned int THREADS_BLOCK = 128;
+constexpr unsigned int BS_DIM = 64;
+constexpr unsigned int WS_DIM = 16;
+constexpr unsigned int MMA_M_DIM = 16;
+constexpr unsigned int MMA_N_DIM = 8;
+constexpr unsigned int MMA_K_DIM = 8;
+
+constexpr unsigned int S = 64*10;
+constexpr unsigned int D = 128;
+
+half *Q, *K, *V, *F, *I;
+Q = (half*) malloc(S * D * sizeof(half));
+K = (half*) malloc(S * D * sizeof(half));
+V = (half*) malloc(S * D * sizeof(half));
+F = (half*) malloc(S * sizeof(half));
+I = (half*) malloc(S * sizeof(half));
+
+fillMatrix(Q, S*D);
+fillMatrix(K, S*D);
+fillMatrix(V, S*D);
+fillMatrix(F, S);
+fillMatrix(I, S);
+
+half *dev_Q, *dev_K, *dev_V, *dev_F, *dev_I, *dev_H;
+CUDA_CHECK(cudaMalloc((void**) &dev_Q, S * D * sizeof(half)));
+CUDA_CHECK(cudaMalloc((void**) &dev_K, S * D * sizeof(half)));
+CUDA_CHECK(cudaMalloc((void**) &dev_V, S * D * sizeof(half)));
+CUDA_CHECK(cudaMalloc((void**) &dev_F, S * sizeof(half)));
+CUDA_CHECK(cudaMalloc((void**) &dev_I, S * sizeof(half)));
+CUDA_CHECK(cudaMalloc((void**) &dev_H, S * D * sizeof(half)));
+
+CUDA_CHECK(cudaMemcpy(dev_Q, Q, S * D * sizeof(half), cudaMemcpyHostToDevice));
+CUDA_CHECK(cudaMemcpy(dev_K, K, S * D * sizeof(half), cudaMemcpyHostToDevice));
+CUDA_CHECK(cudaMemcpy(dev_V, V, S * D * sizeof(half), cudaMemcpyHostToDevice));
+CUDA_CHECK(cudaMemcpy(dev_F, F, S * sizeof(half), cudaMemcpyHostToDevice));
+CUDA_CHECK(cudaMemcpy(dev_I, I, S * sizeof(half), cudaMemcpyHostToDevice));
+
+unsigned int shmem_size = (BS_DIM * D + BS_DIM) * sizeof(half) + BS_DIM * sizeof(float);
+
+matmul_forward<BS_DIM, WS_DIM, D, MMA_M_DIM, MMA_N_DIM, MMA_K_DIM>
+<<<S / BS_DIM, THREADS_BLOCK, shmem_size>>>(dev_Q, dev_K, dev_V, dev_F, dev_I, dev_H, S);
 ```
