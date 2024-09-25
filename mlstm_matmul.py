@@ -409,9 +409,9 @@ if __name__ == '__main__':
     BATCH = 1
     HEADS = 4
     S = 2048
-    D = 128
-    SB = 16
-    NUM_WARPS = 8
+    D = 64
+    SB = 32
+    NUM_WARPS = 4
 
     q = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32, requires_grad=True)
     k = torch.randn((BATCH, HEADS, S, D), device=DEVICE, dtype=torch.float32, requires_grad=True)

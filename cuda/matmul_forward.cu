@@ -4,6 +4,7 @@
 
 /* TODOs:
     - vectorize loads, swizzle shared memory
+    - pipelining/async
     - reduce register usage?
     - check precision + accumulations in fp32
     - increase flexibility regarding dimensions, BS_DIM etc.
@@ -196,7 +197,7 @@ int main(){
     constexpr unsigned int MMA_N_DIM = 8;
     constexpr unsigned int MMA_K_DIM = 8;
 
-    constexpr unsigned int S = 64*10;
+    constexpr unsigned int S = 64*20;
     constexpr unsigned int D = 128;
 
     half *Q, *K, *V, *F, *I;

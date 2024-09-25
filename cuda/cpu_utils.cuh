@@ -168,3 +168,129 @@ void mlstmCpu(half* Q, half* K, half* V, half* F, half* I, half* H,
     free(m);
     free(b);
 }
+
+
+void compute_d_prime(float* d, float* M, const unsigned int S) {
+    for(int i = 0; i < S; i++) {
+        for(int j = 0; j < S; j++) {
+            d[i * S + j] = exp(d[i * S + j] - M[i]);
+        }
+    }
+}
+
+
+void compute_dn(float* c_tilde, float* dC, float* n, float* dn, const unsigned int S) {
+    for(int i = 0; i < S; i++) {
+        float acc = 0.0f;
+        for(int j = 0; j < S; j++) {
+            acc += c_tilde[i * S + j] * dC[i * S + j];
+        }
+        dn[i] = - (acc / pow(n[i], 2));
+    }
+}
+
+
+void compute_db(float* B, float* dn, float* M, half *dB, int S) {
+    for(int i = 0; i < S; i++) {
+        dB[i] = __float2half(abs(B[i]) > exp(-M[i]) ? signbit(B[i]) * dn[i] : 0.0f);
+    }
+}
+
+
+void compute_dq(float* dC, float* dD, half* kk, half* dQ, int S, int D, float scale = 1.0f) {
+    for(int i = 0; i < S; i++) {
+        for(int j = 0; j < D; j++) {
+            float acc = 0;
+            for(int k = 0; k < S; k++) {
+                acc += dC[i*S + k] * dD[i*S + k] * __half2float(kk[k*D + j]);
+            }
+            dQ[i*D + j] = __float2half(acc * scale);
+        }
+    }
+}
+
+
+void compute_dk(float* dC, float* dD, half* q, half* dK, int S, int D, float scale = 1.0f) {
+    for(int i = 0; i < S; i++) {
+        for(int j = 0; j < D; j++) {
+            float acc = 0;
+            for(int k = 0; k < S; k++) {
+                acc += dC[k*S + i] * dD[k*S + i] * __half2float(q[k*D + j]);
+            }
+            dK[i*D + j] = __float2half(acc * scale);
+        }
+    }
+}
+
+
+void mlstmBackwardCpu(half* dB, half* dH, half* Q, half* K, half* V, half* dQ, half* dK,
+                      half* F, half* I, half* M, half* B, const unsigned int S, const unsigned int D) {
+    float *C, *F_buffer, *M_buffer, *B_buffer, *d, *dC, *n, *dn, *dD;
+    C = (float*) malloc(S * S * sizeof(float));
+    d = (float*) malloc(S * S * sizeof(float));
+    dC = (float*) malloc(S * S * sizeof(float));
+    dD = (float*) malloc(S * S * sizeof(float));
+    F_buffer = (float *) malloc(S * sizeof(float));
+    M_buffer = (float *) malloc(S * sizeof(float));
+    B_buffer = (float *) malloc(S * sizeof(float));
+    n = (float *) malloc(S * sizeof(float));
+    dn = (float *) malloc(S * sizeof(float));
+
+    float scale = 1 / sqrt(D);
+    for(int i = 0; i < S; i++) F_buffer[i] = log_sigmoid_cpu(F[i]);
+    cumsum(F_buffer, S);
+
+    // D_tilde 
+    compute_d_tilde(d, M_buffer, F_buffer, I, S);
+    // D_prime 
+    compute_d_prime(d, M_buffer, S);
+    // dC
+    matmulTranspose(dH, V, dC, S, D, S); 
+    // QK^T
+    matmulTranspose(Q, K, C, S, D, S, scale); 
+
+    // C_tilde
+    for(int i = 0; i < S; i++) {
+        for(int j = 0; j < S; j++) {
+            C[i * S + j] *= d[i * S + j];
+        }
+    }
+
+    // B
+    compute_b(B_buffer, C, S);
+    // N
+    for(int i = 0; i < S; i++) n[i] = (max(abs(B_buffer[i]), exp(-M_buffer[i]) + 1e-6));
+    // dN
+    compute_dn(C, dC, n, dn, S);
+    // dB
+    compute_db(B_buffer, dn, M_buffer, dB, S);
+
+    // dD, dC_tilde, C
+    for(int i = 0; i < S; i++) {
+        for(int j = 0; j < S; j++) {
+            dC[i * S + j] = dC[i * S + j] / n[i] + __half2float(dB[i]);
+            dD[i * S + j] = C[i * S + j] * dC[i * S + j];
+            C[i * S + j] /= n[i];
+        }
+    }
+
+    // dQ
+    compute_dq(dC, d, K, dQ, S, D, scale);
+
+    // dK
+    compute_dk(dC, d, Q, dK, S, D, scale);
+
+    // save m, b for backward pass in cuda
+    for(int i = 0; i < S; i++) M[i] = __float2half(M_buffer[i]);
+    for(int i = 0; i < S; i++) B[i] = __float2half(B_buffer[i]);
+
+    free(C);
+    free(d);
+    free(dC);
+    free(dD);
+    free(F_buffer);
+    free(M_buffer);
+    free(B_buffer);
+    free(n);
+    free(dn);
+}
