@@ -4,6 +4,7 @@
 - [x] mLSTM matmul implementation
 - [x] mLSTM matmul backward pass
 - [x] simple mLSTM matmul CUDA forward pass
+- [x] mLSTM matmul forward pass with Cutlass
 - [ ] mLSTM matmul CUDA backward pass
 - [ ] Implement the algorithm from Mamba 2? https://arxiv.org/abs/2405.21060
 - [ ] sLSTM
@@ -77,12 +78,12 @@ h_triton = mlstm_scan(q, k, v, f, i, o,
 Requires >= sm_75.
 
 ```
-nvcc -arch=compute_75 -code=sm_75 matmul_forward.cu -o matmul_forward
-chmod +x matmul_forward
-./matmul_forward
+nvcc -arch=compute_75 -code=sm_75 mlstm_forward.cu -o mlstm_forward
+chmod +x mlstm_forward
+./mlstm_forward
 ```
 
-### [Matmul](https://github.com/LukasBluebaum/xLSTM-Triton-Implementation/blob/284002c63953cb4d6baefafcbbe75cde83bce89c/cuda/matmul_forward.cu#L185) based
+### [Matmul](https://github.com/LukasBluebaum/xLSTM-Triton-Implementation/blob/284002c63953cb4d6baefafcbbe75cde83bce89c/cuda/mlstm_forward.cu#L185) based
 
 ```cuda
 constexpr unsigned int THREADS_BLOCK = 128;
@@ -124,6 +125,6 @@ CUDA_CHECK(cudaMemcpy(dev_I, I, S * sizeof(half), cudaMemcpyHostToDevice));
 
 unsigned int shmem_size = (BS_DIM * D + BS_DIM) * sizeof(half) + BS_DIM * sizeof(float);
 
-matmul_forward<BS_DIM, WS_DIM, D, MMA_M_DIM, MMA_N_DIM, MMA_K_DIM>
+mlstm_forward<BS_DIM, WS_DIM, D, MMA_M_DIM, MMA_N_DIM, MMA_K_DIM>
 <<<S / BS_DIM, THREADS_BLOCK, shmem_size>>>(dev_Q, dev_K, dev_V, dev_F, dev_I, dev_H, S);
 ```

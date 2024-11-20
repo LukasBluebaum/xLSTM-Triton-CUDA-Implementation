@@ -11,7 +11,7 @@
 */
 template<unsigned int BS_DIM, unsigned int WS_DIM, unsigned int D_DIM, 
          unsigned int MMA_M_DIM, unsigned int MMA_N_DIM, unsigned int MMA_K_DIM>
-__global__ void matmul_forward(half* Q, half* K, half* V, half* F, half* I,
+__global__ void mlstm_forward(half* Q, half* K, half* V, half* F, half* I,
                                half* H, const unsigned int S_DIM){
     /*
         BS_DIM: Number of rows a block is responsible for
@@ -234,7 +234,7 @@ int main(){
 
     unsigned int shmem_size = (BS_DIM * D + BS_DIM) * sizeof(half) + BS_DIM * sizeof(float);
 
-    matmul_forward<BS_DIM, WS_DIM, D, MMA_M_DIM, MMA_N_DIM, MMA_K_DIM>
+    mlstm_forward<BS_DIM, WS_DIM, D, MMA_M_DIM, MMA_N_DIM, MMA_K_DIM>
     <<<S / BS_DIM, THREADS_BLOCK, shmem_size>>>(dev_Q, dev_K, dev_V, dev_F, dev_I, dev_H, S);
 
     cudaDeviceSynchronize();
