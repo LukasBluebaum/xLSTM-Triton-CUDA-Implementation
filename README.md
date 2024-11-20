@@ -128,3 +128,17 @@ unsigned int shmem_size = (BS_DIM * D + BS_DIM) * sizeof(half) + BS_DIM * sizeof
 mlstm_forward<BS_DIM, WS_DIM, D, MMA_M_DIM, MMA_N_DIM, MMA_K_DIM>
 <<<S / BS_DIM, THREADS_BLOCK, shmem_size>>>(dev_Q, dev_K, dev_V, dev_F, dev_I, dev_H, S);
 ```
+
+## CUTLASS Usage
+
+Requires >= sm_80.
+
+```
+git clone --recurse-submodules https://github.com/LukasBluebaum/xLSTM-Triton-CUDA-Implementation.git
+nvcc --include-path ../. --include-path cutlass/include \
+    --generate-code=arch=compute_80,code=[compute_80,sm_80] \
+    --expt-relaxed-constexpr -forward-unknown-to-host-compiler \
+    -std=c++17 -O3 -o main main.cu
+chmod +x main
+./main
+```
