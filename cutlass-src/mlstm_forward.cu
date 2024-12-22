@@ -2,7 +2,7 @@
 #include <cute/tensor.hpp>
 #include <cutlass/numeric_conversion.h>
 #include <cuda_fp16.h>
-#include "cpu_utils.cu"
+#include "cpu_utils.cuh"
 
 #define CUDART_INF_F __int_as_float(0x7f800000)
 

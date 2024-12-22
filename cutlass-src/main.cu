@@ -1,6 +1,6 @@
 #include <cute/tensor.hpp>
 
-#include "gemm.cu"
+#include "mlstm_forward.cu"
 #include "cpu_utils.cuh"
 
 

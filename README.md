@@ -135,7 +135,7 @@ Requires >= sm_80.
 
 ```
 git clone --recurse-submodules https://github.com/LukasBluebaum/xLSTM-Triton-CUDA-Implementation.git
-nvcc --include-path ../. --include-path cutlass/include \
+nvcc --include-path ../. --include-path ../cutlass/include \
     --generate-code=arch=compute_80,code=[compute_80,sm_80] \
     --expt-relaxed-constexpr -forward-unknown-to-host-compiler \
     -std=c++17 -O3 -o main main.cu
