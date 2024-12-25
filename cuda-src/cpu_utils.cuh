@@ -36,7 +36,7 @@ void check(half* a, half* b, int size, float atol = 0.01) {
         }
     }
     std::cout << "Non_matching count: " << count << std::endl;
-    std::cout << "Non_matching percent: " << count / (float) size << std::endl;
+    std::cout << "Non_matching percent: " << 100 * (count / (float) size) << std::endl;
 }
 
 

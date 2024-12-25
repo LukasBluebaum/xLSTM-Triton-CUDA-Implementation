@@ -1,7 +1,7 @@
 #include <cute/tensor.hpp>
 
 #include "mlstm_forward.cu"
-#include "cpu_utils.cuh"
+#include "cuda-src/cpu_utils.cuh"
 
 
 int main(int argc, char const *argv[]) {
