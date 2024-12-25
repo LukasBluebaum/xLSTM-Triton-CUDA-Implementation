@@ -5,7 +5,6 @@
 - [x] mLSTM matmul backward pass
 - [x] simple mLSTM matmul CUDA forward pass
 - [x] mLSTM matmul forward pass with Cutlass
-- [ ] mLSTM matmul CUDA backward pass
 - [ ] Implement the algorithm from Mamba 2? https://arxiv.org/abs/2405.21060
 - [ ] sLSTM
 
@@ -75,15 +74,40 @@ h_triton = mlstm_scan(q, k, v, f, i, o,
 
 ## CUDA Usage
 
-Requires >= sm_75.
+### [Hopper](https://github.com/LukasBluebaum/xLSTM-Triton-CUDA-Implementation/blob/main/cutlass-src-hopper/mlstm_forward.cu) sm_90a
 
 ```
-nvcc -arch=compute_75 -code=sm_75 mlstm_forward.cu -o mlstm_forward
+git clone --recurse-submodules https://github.com/LukasBluebaum/xLSTM-Triton-CUDA-Implementation.git
+cd cutlass-src-hopper
+nvcc --include-path ../. --include-path ../cutlass/include \
+     --generate-code=arch=compute_90a,code=[compute_90a,sm_90a] --expt-relaxed-constexpr \
+     -forward-unknown-to-host-compiler -std=c++17 -O3 \
+     -o mlstm_forward mlstm_forward.cu
 chmod +x mlstm_forward
 ./mlstm_forward
 ```
 
-### [Matmul](https://github.com/LukasBluebaum/xLSTM-Triton-Implementation/blob/284002c63953cb4d6baefafcbbe75cde83bce89c/cuda/mlstm_forward.cu#L185) based
+### [Ampere](https://github.com/LukasBluebaum/xLSTM-Triton-CUDA-Implementation/blob/main/cutlass-src-ampere/mlstm_forward.cu) sm_80
+
+```
+git clone --recurse-submodules https://github.com/LukasBluebaum/xLSTM-Triton-CUDA-Implementation.git
+cd cutlass-src-ampere
+nvcc --include-path ../. --include-path ../cutlass/include \
+     --generate-code=arch=compute_80,code=[compute_80,sm_80] \
+     --expt-relaxed-constexpr -forward-unknown-to-host-compiler \
+     -std=c++17 -O3 -o main main.cu
+chmod +x main
+./main
+```
+
+### [Turing](https://github.com/LukasBluebaum/xLSTM-Triton-CUDA-Implementation/blob/main/cuda-src/matmul_forward.cu) sm_75
+
+```
+cd cuda-src
+nvcc -arch=compute_75 -code=sm_75 mlstm_forward.cu -o mlstm_forward
+chmod +x mlstm_forward
+./mlstm_forward
+```
 
 ```cuda
 constexpr unsigned int THREADS_BLOCK = 128;
@@ -127,18 +151,4 @@ unsigned int shmem_size = (BS_DIM * D + BS_DIM) * sizeof(half) + BS_DIM * sizeof
 
 mlstm_forward<BS_DIM, WS_DIM, D, MMA_M_DIM, MMA_N_DIM, MMA_K_DIM>
 <<<S / BS_DIM, THREADS_BLOCK, shmem_size>>>(dev_Q, dev_K, dev_V, dev_F, dev_I, dev_H, S);
-```
-
-## CUTLASS Usage
-
-Requires >= sm_80.
-
-```
-git clone --recurse-submodules https://github.com/LukasBluebaum/xLSTM-Triton-CUDA-Implementation.git
-nvcc --include-path ../. --include-path ../cutlass/include \
-    --generate-code=arch=compute_80,code=[compute_80,sm_80] \
-    --expt-relaxed-constexpr -forward-unknown-to-host-compiler \
-    -std=c++17 -O3 -o main main.cu
-chmod +x main
-./main
 ```
