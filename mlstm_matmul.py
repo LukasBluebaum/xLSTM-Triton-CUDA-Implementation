@@ -14,9 +14,9 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 @triton.jit
 def matrix_mult(x, y, B):
-    return tl.dot(x, y) if B >= 16 else tl.sum(x[:, :, None] * y, 1)
+    # return tl.dot(x, y) if B >= 16 else tl.sum(x[:, :, None] * y, 1)
     # https://github.com/triton-lang/triton/issues/3787
-    # return tl.dot(x, y, allow_tf32=False) if B >= 16 else tl.sum(x[:, :, None] * y, 1)
+    return tl.dot(x, y, allow_tf32=False) if B >= 16 else tl.sum(x[:, :, None] * y, 1)
 
 
 @triton.jit
