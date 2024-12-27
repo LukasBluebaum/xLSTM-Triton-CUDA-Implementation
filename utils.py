@@ -10,6 +10,6 @@ def check(*inputs, name='A', atol=1e-2, rtol=1e-2):
         if not c:
             print(name)
             print(f"Percentage non-matching: "
-                  f"{format(torch.sum(c1 == False) / torch.numel(a), '.10f')}")
+                  f"{format(100 * torch.sum(c1 == False) / torch.numel(a), '.10f')}")
             return
     print(f"{name} -- EQUAL")
