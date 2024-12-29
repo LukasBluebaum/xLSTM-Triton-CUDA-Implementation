@@ -198,7 +198,7 @@ mlstm_kernel(int S, TQ const* Q, CUTLASS_GRID_CONSTANT TmaQ const tma_Q,
     gemm(mma_T, tCrQ(_,_,_,0), tCrK(_,_,_,0), tCrQK);
     warpgroup_commit_batch();
 
-    // Remove this and fuse the cumulative sum in the projection before 
+    // Remove this and fuse the cumulative sum in the projection before?
     if (threadIdx.x < bS) {
       float val = log_sigmoid(sF(threadIdx.x)); 
       int lane_id = threadIdx.x % 32;
@@ -261,11 +261,14 @@ mlstm_kernel(int S, TQ const* Q, CUTLASS_GRID_CONSTANT TmaQ const tma_Q,
     b_acc(1) += b_acc_buffer(1);
 
     CUTE_UNROLL
-    for (unsigned int block_d = 0; block_d < size<0,2>(tCrH); block_d++) {
-      tCrH(make_coord(0, 0, block_d), 0, 0) *= half_t(exp(m_acc(0) - m_acc_buffer(0)));
-      tCrH(make_coord(1, 0, block_d), 0, 0) *= half_t(exp(m_acc(0) - m_acc_buffer(0)));
-      tCrH(make_coord(0, 1, block_d), 0, 0) *= half_t(exp(m_acc(1) - m_acc_buffer(1)));
-      tCrH(make_coord(1, 1, block_d), 0, 0) *= half_t(exp(m_acc(1) - m_acc_buffer(1)));
+    for (unsigned int mma_n = 0; mma_n < size<2>(tCrH); mma_n++) {
+      CUTE_UNROLL
+      for (unsigned int block_d = 0; block_d < size<0,2>(tCrH); block_d++) {
+        tCrH(make_coord(0, 0, block_d), 0, mma_n) *= half_t(exp(m_acc(0) - m_acc_buffer(0)));
+        tCrH(make_coord(1, 0, block_d), 0, mma_n) *= half_t(exp(m_acc(0) - m_acc_buffer(0)));
+        tCrH(make_coord(0, 1, block_d), 0, mma_n) *= half_t(exp(m_acc(1) - m_acc_buffer(1)));
+        tCrH(make_coord(1, 1, block_d), 0, mma_n) *= half_t(exp(m_acc(1) - m_acc_buffer(1)));
+      }
     }
 
     auto acc_layout = tCrQK.layout();
@@ -286,7 +289,6 @@ mlstm_kernel(int S, TQ const* Q, CUTLASS_GRID_CONSTANT TmaQ const tma_Q,
     m_acc(0) = m_acc_buffer(0);
     m_acc(1) = m_acc_buffer(1);
     if (k_tile > 0) {
-      __syncthreads();
       mbarrier.wait(phase++);
     }
   }
@@ -294,14 +296,18 @@ mlstm_kernel(int S, TQ const* Q, CUTLASS_GRID_CONSTANT TmaQ const tma_Q,
   half_t n_row_1 = half_t(fmaxf(abs(b_acc(0)), exp(-m_acc(0))) + 1e-6);
   half_t n_row_2 = half_t(fmaxf(abs(b_acc(1)), exp(-m_acc(1))) + 1e-6);
   CUTE_UNROLL
-  for(unsigned int block_d = 0; block_d < size<0,2>(tCrH); block_d++) {
-    tCrH(make_coord(0, 0, block_d), 0, 0) /= n_row_1;
-    tCrH(make_coord(1, 0, block_d), 0, 0) /= n_row_1;
-    tCrH(make_coord(0, 1, block_d), 0, 0) /= n_row_2;
-    tCrH(make_coord(1, 1, block_d), 0, 0) /= n_row_2;
+  for (unsigned int mma_n = 0; mma_n < size<2>(tCrH); mma_n++) {
+    CUTE_UNROLL
+    for(unsigned int block_d = 0; block_d < size<0,2>(tCrH); block_d++) {
+      tCrH(make_coord(0, 0, block_d), 0, mma_n) /= n_row_1;
+      tCrH(make_coord(1, 0, block_d), 0, mma_n) /= n_row_1;
+      tCrH(make_coord(0, 1, block_d), 0, mma_n) /= n_row_2;
+      tCrH(make_coord(1, 1, block_d), 0, mma_n) /= n_row_2;
+    }
   }
 
-  // TODO: Use TMA Store
+  // TODO: Vectorize Store
+  CUTE_UNROLL
   for (int i = 0; i < size(tCrH); ++i) {
     tCgH(i) = tCrH(i);
   }
@@ -324,10 +330,10 @@ mlstm(int S, TQ const* Q, TK const* K, TV const* V,
   auto bD = Int<D>{};
   auto bP = Int<1>{};
 
-  auto sQ = tile_to_shape(GMMA::Layout_K_SW128_Atom<TQ>{}, make_shape(bS, bD, bP));
+  auto sQ = tile_to_shape(GMMA::Layout_K_SW128_Atom<TQ>{}, make_shape(bS, bD, Int<1>{}));
   auto sK = tile_to_shape(GMMA::Layout_K_SW128_Atom<TK>{}, make_shape(bS, bD, bP));
   auto sV = tile_to_shape(GMMA::Layout_K_SW128_Atom<TV>{}, make_shape(bS, bD, bP));
-  auto sV_T = tile_to_shape(GMMA::Layout_MN_SW128_Atom<TV>{}, make_shape(bD, bS, bP));
+  auto sV_T = composition(sV, make_ordered_layout(make_shape(Int<bD>{}, Int<bS>{}, Int<bP>{}), Step<_2, _1, _3>{}));
   // swizzle
   auto sF = tile_to_shape(Layout<Shape<Int<bS>>, Stride<Int<1>>>{}, make_shape(bS, bP));
   auto sI = tile_to_shape(Layout<Shape<Int<bS>>, Stride<Int<1>>>{}, make_shape(bS, bP));
@@ -399,9 +405,10 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  int S = 128;
+  int S = 64;
   int D = 64;
   if (argc >= 2) sscanf(argv[1], "%d", &S);
+  if (argc >= 3) sscanf(argv[2], "%d", &D);
 
 
   using TQ = cute::half_t;
@@ -433,9 +440,23 @@ int main(int argc, char** argv) {
   thrust::device_vector<TI> d_I = h_I;
   thrust::device_vector<TH> d_H = h_H;
 
-  // TODO: Add other head dimensions
-  mlstm::mlstm<64>(S, d_Q.data().get(), d_K.data().get(), d_V.data().get(),
-                   d_F.data().get(), d_I.data().get(), d_H.data().get());
+  // TODO: Use define switch
+  if (D == 64) {
+    mlstm::mlstm<64>(S, d_Q.data().get(), d_K.data().get(), d_V.data().get(),
+                     d_F.data().get(), d_I.data().get(), d_H.data().get());
+  } else if (D == 128) {
+    mlstm::mlstm<128>(S, d_Q.data().get(), d_K.data().get(), d_V.data().get(),
+                      d_F.data().get(), d_I.data().get(), d_H.data().get());
+  } else if (D == 256) {
+    mlstm::mlstm<256>(S, d_Q.data().get(), d_K.data().get(), d_V.data().get(),
+                      d_F.data().get(), d_I.data().get(), d_H.data().get());
+  } else if (D == 512) {
+    mlstm::mlstm<512>(S, d_Q.data().get(), d_K.data().get(), d_V.data().get(),
+                      d_F.data().get(), d_I.data().get(), d_H.data().get());
+  } else {
+    std::cout << "Only supports head dimensions of 64, 128, 256, 512." << std::endl;
+    return 1;
+  }
   thrust::host_vector<TH> cute_result = d_H;
 
   CUTE_CHECK_LAST();

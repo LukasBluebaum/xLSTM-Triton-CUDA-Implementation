@@ -13,7 +13,7 @@ int main(int argc, char const *argv[]) {
     int64_t S = atoi(argv[1]);
     int64_t D = atoi(argv[2]);
     if (D != 64 && D != 128 && D != 256 && D!= 512) {
-        std::cout << "Only support head dimensions of 64, 128, 256, 512." << std::endl;
+        std::cout << "Only supports head dimensions of 64, 128, 256, 512." << std::endl;
         return 1;
     }
 

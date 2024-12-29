@@ -19,7 +19,6 @@ nvcc --include-path ../. --include-path ../cutlass/include \
      --generate-code=arch=compute_90a,code=[compute_90a,sm_90a] --expt-relaxed-constexpr \
      -forward-unknown-to-host-compiler -std=c++17 -O3 \
      -o mlstm_forward mlstm_forward.cu
-chmod +x mlstm_forward
 ./mlstm_forward
 ```
 
@@ -32,7 +31,6 @@ nvcc --include-path ../. --include-path ../cutlass/include \
      --generate-code=arch=compute_80,code=[compute_80,sm_80] \
      --expt-relaxed-constexpr -forward-unknown-to-host-compiler \
      -std=c++17 -O3 -o main main.cu
-chmod +x main
 ./main
 ```
 
@@ -41,7 +39,6 @@ chmod +x main
 ```
 cd cuda-src
 nvcc -arch=compute_75 -code=sm_75 mlstm_forward.cu -o mlstm_forward
-chmod +x mlstm_forward
 ./mlstm_forward
 ```
 
